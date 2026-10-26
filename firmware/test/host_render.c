@@ -43,8 +43,39 @@ static void director(bs_scene_t *sc) {
   else if (!strcmp(s->cmd, "root")) bs_root(sc);
 }
 
+// Firmware-only screens, for review: boot splash, a keyboard lookup, the
+// low-battery and debug overlays, a settings toast.
+static void states(const char *out) {
+  static bs_scene_t sc;
+  static uint8_t fb[BS_W * BS_H];
+  FILE *f = fopen(out, "wb");
+  const float dt = 1.0f / 60;
+  bs_scene_init(&sc, BS_MODE_B70, 5);
+  sc.splash_t0 = 0;
+#define RUN(sec) for (int i = 0; i < (int)((sec) * 60); i++) bs_update(&sc, dt)
+#define SHOT() do { bs_render(&sc, fb); fwrite(fb, 1, sizeof fb, f); } while (0)
+  RUN(0.9); SHOT();                    // splash: icon and wordmark
+  RUN(1.6); SHOT();                    // splash: the Borges line
+  RUN(2.5);
+  const char *text = "Babel";          // typed on the keyboard, one key at a time
+  for (int i = 1; i <= 5; i++) {
+    if (!sc.host) bs_connect(&sc, BS_HOST_LOOKUP);
+    bs_goto_bytes(&sc, (const uint8_t *)text, i, 0, true);
+    RUN(0.25);
+  }
+  RUN(1.2); SHOT();                    // lookup landed: the path to type into a file browser
+  bs_toggle_book(&sc); RUN(1.4); SHOT();
+  bs_toggle_book(&sc); RUN(1.0);
+  sc.battery_pct = 6; sc.show_fps = true; sc.fps = 31; sc.free_kb = 41;
+  bs_toast(&sc, "NAMES: HEX 00-FF", BS_LAMP, 1.4f);
+  RUN(0.6); SHOT();                    // overlays + toast
+  bs_disconnect(&sc); RUN(0.5); SHOT(); // lookup times out: back to freefall
+  fclose(f);
+}
+
 int main(int argc, char **argv) {
   const char *mode = argc > 1 ? argv[1] : "hex";
+  if (!strcmp(mode, "states")) { bs_init_tables(); states(argc > 3 ? argv[3] : "states.raw"); return 0; }
   const char *times = argc > 2 ? argv[2] : "1,4,6.5,9,11.2,14,17,20";
   const char *out = argc > 3 ? argv[3] : "frames.raw";
   bs_init_tables();

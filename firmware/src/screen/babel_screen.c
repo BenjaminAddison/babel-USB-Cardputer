@@ -1079,11 +1079,13 @@ void bs_navigate_to(bs_scene_t *sc, const uint16_t *target, int n, float interva
   static uint16_t cur[BS_PATH_MAX];
   int cn = sc->path_len;
   memcpy(cur, sc->path, cn * sizeof(uint16_t));
+  int host = sc->host;
   for (int i = 0; i < sc->q_len; i++) {
     const bs_action_t *a = &sc->queue[i];
     if (a->kind == A_ENTER) { if (cn < BS_PATH_MAX) cur[cn++] = a->comp; }
     else if (a->kind == A_UP) { if (cn) cn--; }
     else if (a->kind == A_ROOT) cn = 0;
+    else if (a->kind == A_CONNECT && host != BS_HOST_MTP && host != a->comp) { cn = 0; host = a->comp; }  // port note: a connect resets the path
   }
   int common = 0;
   while (common < cn && common < n && cur[common] == target[common]) common++;
