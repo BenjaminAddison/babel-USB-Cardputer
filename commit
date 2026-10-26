@@ -1,0 +1,4 @@
+cd C:\Users\Ben\Downloads\cardfirm
+git add -A
+git commit -m "Firmware work in progress"
+git push origin main

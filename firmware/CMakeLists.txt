@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.16.0)
+list(APPEND EXTRA_COMPONENT_DIRS "${CMAKE_SOURCE_DIR}/../babel-usb/lib/espressif-tinyusb-component")
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+project(babel-cardputer)
+idf_build_set_property(COMPILE_OPTIONS "-I${CMAKE_SOURCE_DIR}/include" APPEND)
