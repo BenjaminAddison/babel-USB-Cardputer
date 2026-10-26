@@ -94,3 +94,24 @@ Last updated 2026-10-26, at the end of the first session.
 - The alphabet array in the repo has 74 entries, but only the first 70 are used (`% 70`). `[ ] ^ =` never appear in folder names.
 - Folder names can contain spaces. The screen shows them as `␣`, but the copied path keeps real spaces.
 - Every source of randomness in `babel-screen.js` is seeded, so a given timeline renders the same frames in the browser and in Node.
+
+## Session 2 notes (firmware research, no firmware code yet)
+
+- Decided to skip publishing the concept page as an artifact; the GIFs and PNGs are the reference. A headless Chrome check showed the page works but overflows horizontally at phone width.
+- Cardputer ADV display, from M5GFX autodetect (same as the original Cardputer):
+  - ST7789 on SPI3_HOST, MOSI 35, SCLK 36, DC 34, CS 37, RST 33, no MISO, 40 MHz.
+  - The panel is 135×240 at offset (52, 40), colours inverted, RGB order, rotation 1.
+  - Backlight is PWM on GPIO 38, at 256 Hz.
+  - For `esp_lcd`, use swap_xy on, mirror_x on, mirror_y off, a gap of (40, 53), and invert_color on.
+- ADV internal I2C is SDA 8 / SCL 9: TCA8418 keyboard (likely address 0x34), BMI270, ES8311. G5/G6 go to the external port.
+- Build environment: PlatformIO 6.2.0 is already installed with ESP-IDF 5.5.5 (babel-usb was built on 5.5.0). To reuse it with no download, use
+  `platform = https://github.com/pioarduino/platform-espressif32/releases/download/55.03.312-1/platform-espressif32.zip`, `framework = espidf`.
+- babel-usb build: the root CMakeLists adds `lib/espressif-tinyusb-component` to EXTRA_COMPONENT_DIRS and `-Iinclude` (for `tusb_config.h`). The sdkconfig is IDF 5.5.0 with 2 MB flash, so change it to 8 MB, 240 MHz and -O2 for the Cardputer.
+- Launcher accepts merged images (bootloader + partition table + app at 0x0) and plain app images, so ship a merged `.bin`.
+
+### Remaining firmware steps (estimate: one focused session)
+1. Create a `firmware/` PlatformIO project that reuses babel-usb's MTP code, TinyUSB component and descriptors.
+2. Write an ST7789 driver on `esp_lcd` and a C port of `babel-screen.js` (renderer and scene), plus a display task fed by an event queue from the MTP handlers.
+3. Fix back-navigation path tracking (a stack by depth).
+4. Optional: the TCA8418 keyboard lookup.
+5. Build, produce the merged `.bin`, and test on hardware.
