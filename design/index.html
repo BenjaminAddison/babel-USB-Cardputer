@@ -1,0 +1,636 @@
+<title>Babel Air Shaft</title>
+<meta name="description" content="Animated screen concept for a USB-of-Babel firmware on the M5Stack Cardputer ADV.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IM+Fell+English:ital@0;1&display=swap">
+<style>
+  /* Layout: one 72rem column. The live screen leads; the system follows in quiet bands.
+     Deliberately single-theme: a dark room, so the LCD is the brightest thing on the page. */
+  :root {
+    color-scheme: dark;
+    --bg: #0b0c12;
+    --bg-2: #0f111a;
+    --panel: #141724;
+    --line: #23273a;
+    --line-2: #33384f;
+    --text: #cdc4ab;
+    --head: #efe3c2;
+    --dim: #8a8678;
+    --amber: #ffb94e;
+    --ember: #c26b23;
+    --cyan: #5fe3cf;
+    --ox: #c0524a;
+    --f-display: "IM Fell English", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+    --s--1: 0.8125rem;
+    --s-0: 1rem;
+    --s-1: 1.25rem;
+    --s-2: clamp(1.6rem, 3.2vw, 2.1rem);
+    --s-3: clamp(2.6rem, 7vw, 4.6rem);
+    --r: 10px;
+  }
+  html, body { background: var(--bg); }
+  body { color: var(--text); font: 400 var(--s-0)/1.6 var(--f-body); -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 72rem; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); padding-block: clamp(28px, 5vw, 56px) 72px; }
+  a { color: var(--cyan); text-underline-offset: 3px; }
+  a:hover { color: var(--head); }
+  :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+  code, kbd, .mono { font-family: var(--f-mono); font-size: 0.92em; }
+  h1, h2 { font-family: var(--f-display); font-weight: 400; color: var(--head); text-wrap: balance; letter-spacing: 0.005em; }
+  h2 { font-size: var(--s-2); line-height: 1.15; margin: 0 0 0.4em; }
+  h3 { font: 600 0.72rem/1.2 var(--f-body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); margin: 0 0 10px; }
+  p { margin: 0 0 1em; }
+  .eyebrow { font: 500 0.75rem/1.4 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--amber); margin: 0 0 18px; }
+
+  /* ---------------------------------------------------------------- masthead */
+  .mast h1 { font-size: var(--s-3); line-height: 0.95; margin: 0 0 28px; }
+  .mast-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(20px, 4vw, 56px); align-items: start; }
+  .epigraph { margin: 0; font: italic 400 1.22rem/1.45 var(--f-display); color: var(--head); max-width: 34ch; }
+  .epigraph cite { display: block; margin-top: 12px; font: 400 0.8rem/1.4 var(--f-body); font-style: normal; color: var(--dim); }
+  .lede { max-width: 60ch; margin: 0; }
+  .lede strong { color: var(--head); font-weight: 500; }
+
+  /* ------------------------------------------------------------------ stage */
+  .stage { display: grid; grid-template-columns: minmax(0, 1fr) 21rem; gap: clamp(20px, 3vw, 36px); margin-top: clamp(36px, 6vw, 64px); align-items: start; }
+  .viewer { min-width: 0; display: grid; gap: 14px; }
+  .bezel {
+    position: relative; border-radius: 16px; padding: clamp(10px, 1.6vw, 18px);
+    background: linear-gradient(180deg, #1c1e27, #121319);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 -1px 0 rgba(0, 0, 0, 0.6), 0 40px 80px -30px rgba(0, 0, 0, 0.85), 0 0 140px -50px rgba(255, 185, 78, 0.28);
+    cursor: crosshair; touch-action: none;
+  }
+  .bezel:focus-visible { outline-offset: 4px; }
+  .fit { display: flex; justify-content: center; }
+  canvas.px { display: block; image-rendering: pixelated; image-rendering: crisp-edges; max-width: 100%; }
+  .bezel canvas { box-shadow: 0 0 0 1px #000, 0 0 0 2px #24262f; border-radius: 2px; }
+  .bezel::after {
+    content: ""; position: absolute; inset: clamp(10px, 1.6vw, 18px); border-radius: 2px; pointer-events: none;
+    background: linear-gradient(115deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0) 38%);
+  }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; font: 400 var(--s--1)/1.4 var(--f-body); color: var(--dim); }
+  .live { display: inline-flex; align-items: center; gap: 8px; }
+  .live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+  .live.paused::before { background: var(--dim); box-shadow: none; }
+  .meta label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text); }
+  .meta input { accent-color: var(--cyan); }
+  .actual { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+  .actual canvas { width: 24.9mm; height: 14mm; image-rendering: auto; box-shadow: 0 0 0 1px #000, 0 0 0 2px #2a2d38; }
+
+  /* Cardputer keyboard: 4 x 14, clickable */
+  .keyboard { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: clamp(3px, 0.5vw, 6px); padding: clamp(8px, 1.2vw, 12px); border-radius: 14px; background: #15161d; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04); }
+  .key {
+    min-width: 0; aspect-ratio: 1.12; display: grid; place-items: center; padding: 0;
+    font: 500 clamp(9px, 1.05vw, 12px)/1 var(--f-mono); color: #d8d2c2; background: linear-gradient(180deg, #262938, #1d202c);
+    border: 1px solid #2f3347; border-bottom-color: #14161f; border-radius: 6px; cursor: pointer; text-transform: none;
+  }
+  .key:hover { background: linear-gradient(180deg, #2e3244, #232636); }
+  .key:active, .key.down { transform: translateY(1px); background: #191b26; }
+  .key.mod { color: var(--dim); font-size: clamp(8px, 0.85vw, 10px); }
+  .key.act { color: var(--amber); font-size: clamp(8px, 0.85vw, 10px); }
+  .key.on { color: var(--cyan); border-color: #2e5f5a; }
+  .kb-note { font-size: var(--s--1); color: var(--dim); margin: -4px 0 0; }
+
+  /* ---------------------------------------------------------------- console */
+  .console { display: grid; gap: 22px; min-width: 0; }
+  .field { min-width: 0; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
+  .seg button { font: 500 0.9rem/1.2 var(--f-body); color: var(--text); background: transparent; border: 0; padding: 10px 12px; cursor: pointer; text-align: left; }
+  .seg button + button { border-left: 1px solid var(--line-2); }
+  .seg button small { display: block; font: 400 0.72rem/1.3 var(--f-mono); color: var(--dim); margin-top: 2px; }
+  .seg button[aria-checked="true"] { background: #1b2b2c; color: var(--head); box-shadow: inset 0 -2px 0 var(--cyan); }
+  .note { font-size: var(--s--1); color: var(--dim); margin: 10px 0 0; }
+  .note code { color: var(--text); }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+  .btn {
+    font: 500 0.875rem/1 var(--f-body); color: var(--text); background: var(--panel); border: 1px solid var(--line-2);
+    border-radius: 8px; padding: 10px 13px; cursor: pointer;
+  }
+  .btn:hover { border-color: #4a5070; color: var(--head); }
+  .btn.primary { color: #1b1206; background: var(--amber); border-color: var(--amber); }
+  .btn.primary:hover { background: #ffc871; }
+  .btn[aria-pressed="false"] { color: var(--dim); }
+  .auto-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: var(--s--1); color: var(--dim); }
+  input[type="text"] {
+    width: 100%; box-sizing: border-box; font: 400 1rem/1.3 var(--f-mono); color: var(--head);
+    background: #0d0f17; border: 1px solid var(--line-2); border-radius: 8px; padding: 11px 12px;
+  }
+  input[type="text"]::placeholder { color: #5d5b55; }
+  .pathout { display: flex; align-items: flex-start; gap: 8px; margin-top: 10px; }
+  .pathout output { flex: 1; min-width: 0; font: 400 0.9rem/1.45 var(--f-mono); color: var(--cyan); word-break: break-all; background: #0d0f17; border: 1px dashed var(--line-2); border-radius: 8px; padding: 9px 11px; }
+  .pathout output .sp { color: var(--dim); }
+  .pathout .btn { flex: none; padding: 9px 11px; }
+  .log { list-style: none; margin: 0; padding: 10px 0; border-radius: 8px; background: #0d0f17; border: 1px solid var(--line); font: 400 0.74rem/1.55 var(--f-mono); min-height: 13.5em; overflow: hidden; }
+  .log li { display: grid; grid-template-columns: 3.4em 9.2em minmax(0, 1fr); gap: 6px; padding: 1px 12px; color: var(--dim); }
+  .log li:first-child { color: var(--text); }
+  .log li:first-child .op { color: var(--amber); }
+  .log .op { color: var(--text); }
+  .log .det { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .log .empty { display: block; padding: 0 12px; }
+
+  /* ------------------------------------------------------------------ bands */
+  .band { margin-top: clamp(64px, 9vw, 112px); }
+  .band > .intro { max-width: 62ch; color: var(--text); }
+  .rule { height: 1px; background: linear-gradient(90deg, var(--line-2), transparent); margin-bottom: 26px; }
+
+  .anatomy { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: clamp(20px, 4vw, 44px); align-items: start; margin-top: 22px; }
+  .pinned { position: relative; margin: 0; justify-self: start; max-width: 100%; }
+  .pinned canvas { box-shadow: 0 0 0 1px #000, 0 0 0 2px #22252f; }
+  .pin {
+    position: absolute; transform: translate(-50%, -50%); width: 22px; height: 22px; border-radius: 50%;
+    display: grid; place-items: center; font: 600 0.72rem/1 var(--f-body); color: #120c04; background: var(--amber);
+    box-shadow: 0 0 0 2px rgba(11, 12, 18, 0.9), 0 2px 10px rgba(0, 0, 0, 0.6);
+  }
+  .legend { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; counter-reset: pin; }
+  .legend li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 12px; font-size: 0.93rem; line-height: 1.5; }
+  .legend li::before { counter-increment: pin; content: counter(pin); width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 600 0.72rem/1 var(--f-body); color: #120c04; background: var(--amber); margin-top: 1px; }
+  .legend b { color: var(--head); font-weight: 600; }
+
+  .states { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 28px 24px; margin-top: 26px; }
+  .states figure { margin: 0; min-width: 0; }
+  .states canvas { box-shadow: 0 0 0 1px #000, 0 0 0 2px #22252f; }
+  .states figcaption { margin-top: 12px; font-size: 0.9rem; line-height: 1.5; }
+  .states figcaption b { display: block; font: 400 1.15rem/1.3 var(--f-display); color: var(--head); margin-bottom: 2px; }
+  .states figcaption code { color: var(--cyan); }
+
+  .sys { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 56px); margin-top: 26px; }
+  .sys > div { min-width: 0; }
+  .palette { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+  .sw { border-radius: 8px; overflow: hidden; background: var(--panel); border: 1px solid var(--line); }
+  .sw .chip { height: 58px; position: relative; }
+  .sw .chip span { position: absolute; left: 8px; bottom: 5px; font: 500 1.35rem/1 var(--f-mono); }
+  .sw .lab { padding: 7px 8px 8px; font: 400 0.7rem/1.35 var(--f-mono); color: var(--dim); }
+  .sw .lab b { display: block; color: var(--text); font-weight: 500; letter-spacing: 0.04em; }
+  .ramps { display: grid; gap: 9px; margin-top: 14px; }
+  .ramp { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); align-items: center; gap: 12px; font-size: 0.82rem; }
+  .ramp .strip { display: flex; height: 22px; border-radius: 5px; overflow: hidden; }
+  .ramp .strip i { flex: 1; position: relative; }
+  .ramp .strip i.nom::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 6px; height: 6px; transform: translate(-50%, 50%) rotate(45deg); background: var(--head); }
+  .specimen { margin-top: 14px; display: grid; gap: 10px; }
+  .specimen canvas { box-shadow: 0 0 0 1px var(--line); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; margin-top: 12px; }
+  th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 600 0.68rem/1.2 var(--f-body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+  td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; color: var(--head); white-space: nowrap; }
+  .scroll { overflow-x: auto; }
+  .facts { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; font-size: 0.92rem; }
+  .facts li { padding-left: 16px; position: relative; }
+  .facts li::before { content: ""; position: absolute; left: 0; top: 0.62em; width: 6px; height: 6px; background: var(--ember); transform: rotate(45deg); }
+  .facts b { color: var(--head); font-weight: 500; }
+  pre { margin: 14px 0 0; padding: 16px 18px; background: #0d0f17; border: 1px solid var(--line); border-radius: var(--r); font: 400 0.8rem/1.6 var(--f-mono); color: var(--text); overflow-x: auto; }
+  pre .c { color: #6f6c62; }
+  pre .k { color: var(--amber); }
+  pre .f { color: var(--cyan); }
+  footer { margin-top: clamp(64px, 9vw, 104px); padding-top: 22px; border-top: 1px solid var(--line); font-size: var(--s--1); color: var(--dim); display: flex; flex-wrap: wrap; gap: 8px 28px; justify-content: space-between; }
+
+  @media (max-width: 960px) {
+    .stage { grid-template-columns: minmax(0, 1fr); }
+    .anatomy, .sys, .mast-cols { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 520px) {
+    .palette { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ramp { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    .actual { margin-left: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .key:active, .key.down { transform: none; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <p class="eyebrow">Cardputer ADV &middot; 240 &times; 135 &middot; screen concept for a USB-of-Babel firmware</p>
+    <h1>The Air Shaft</h1>
+    <div class="mast-cols">
+      <blockquote class="epigraph">&ldquo;The universe (which others call the Library) is composed of an indefinite and perhaps infinite number of hexagonal galleries, with vast air shafts between, surrounded by very low railings.&rdquo;<cite>Jorge Luis Borges, <i>The Library of Babel</i></cite></blockquote>
+      <p class="lede">The screen looks straight down one of those air shafts. <strong>Every floor is a folder.</strong> The next floor&rsquo;s name flickers through every possibility until the computer opens one; as you drop through it, the name falls into the path bar. At the bottom, always just out of reach, floats <strong>the book</strong>: the one <code>file</code> in every folder, whose contents are the path you took.</p>
+    </div>
+  </header>
+
+  <section class="stage" aria-label="Live screen">
+    <div class="viewer">
+      <div class="bezel" id="bezel" tabindex="0" aria-label="Live Cardputer screen. While focused, type to look up a file, Enter reads it, Backspace goes back, Escape returns to the root.">
+        <div class="fit"><canvas class="px" id="screen" width="240" height="135"></canvas></div>
+      </div>
+      <div class="meta">
+        <span class="live" id="live">Live, from the same renderer as the GIF</span>
+        <span>Drag across the screen to tilt it</span>
+        <label for="guides"><input type="checkbox" id="guides"> Guides</label>
+        <span class="actual" title="Approximate: depends on your display"><canvas id="actual" width="240" height="135"></canvas> &asymp; real size</span>
+      </div>
+      <div class="keyboard" id="keyboard" aria-label="Cardputer keyboard"></div>
+      <p class="kb-note">The keys type into the screen, as the Cardputer&rsquo;s own keyboard would: letters look a file up, <kbd>del</kbd> goes back a folder, <kbd>enter</kbd> reads the file, <kbd>tab</kbd> returns to the root.</p>
+    </div>
+
+    <aside class="console" aria-label="Controls">
+      <div class="field">
+        <h3>Folder names</h3>
+        <div class="seg" role="radiogroup" aria-label="Folder naming scheme">
+          <button type="button" role="radio" aria-checked="true" data-mode="hex" id="mode-hex">Hex<small>00&ndash;FF &middot; 1 byte/floor</small></button>
+          <button type="button" role="radio" aria-checked="false" data-mode="b70" id="mode-b70">Babel-70<small>as shipped in the repo</small></button>
+        </div>
+        <p class="note" id="mode-note"></p>
+      </div>
+
+      <div class="field">
+        <h3>Host</h3>
+        <div class="btns">
+          <button type="button" class="btn" id="b-plug">Unplug</button>
+          <button type="button" class="btn primary" id="b-read">Read file</button>
+          <button type="button" class="btn" id="b-back">Back</button>
+          <button type="button" class="btn" id="b-root">Root</button>
+        </div>
+        <div class="auto-row"><button type="button" class="btn" id="b-auto" aria-pressed="true">Pause demo</button><span id="auto-state">Demo is driving the screen</span></div>
+      </div>
+
+      <div class="field">
+        <h3>Find a file</h3>
+        <label for="find" class="note" style="display:block;margin:0 0 8px">Type any text; the screen dives to the folder that holds it.</label>
+        <input type="text" id="find" autocomplete="off" spellcheck="false" placeholder="Hello">
+        <div class="pathout"><output id="pathout" for="find">/</output><button type="button" class="btn" id="copy">Copy</button></div>
+        <p class="note" id="find-note">Paste the path after <code>disk/</code> in your file browser to pull the real file off the stick.</p>
+      </div>
+
+      <div class="field">
+        <h3>MTP log</h3>
+        <ol class="log" id="log" aria-live="off"></ol>
+      </div>
+    </aside>
+  </section>
+
+  <section class="band" id="anatomy">
+    <div class="rule"></div>
+    <h2>Reading the screen</h2>
+    <p class="intro">Four folders deep into &ldquo;Hello&rdquo;, waiting for the host to open the fifth.</p>
+    <div class="anatomy">
+      <figure class="pinned"><div class="fit"><canvas class="px" id="still" width="240" height="135"></canvas></div><div id="pins"></div></figure>
+      <ol class="legend">
+        <li><span><b>Wordmark.</b> <code>USB OF BABEL</code> is the MTP friendly name from <code>DEV_INFO_MODEL</code>. The shaft in the gallery icon lights when a host is attached.</span></li>
+        <li><span><b>Session and activity LED.</b> <code>MTP</code> while a session is open. The LED flashes crimson on every MTP operation, like a thumb drive.</span></li>
+        <li><span><b>Lamps.</b> &ldquo;There are two, transversally placed, in each hexagon.&rdquo; They sit on opposite corners of every railing and ignite floor by floor when a host connects.</span></li>
+        <li><span><b>The next folder.</b> The tab on the next railing cycles through every possible name. When the host opens one it locks white, the shaft drops a floor, and the name falls into the path.</span></li>
+        <li><span><b>The file.</b> The book at the bottom of every folder. Reading it raises the book and opens it: bytes on the left page, text on the right.</span></li>
+        <li><span><b>Call number.</b> The current path, newest folder last. The cursor marks where the next name will land.</span></li>
+        <li><span><b>Title.</b> The file at this depth, as text. Bytes that can&rsquo;t be printed show as dots.</span></li>
+        <li><span><b>Depth and size.</b> Folders deep, and bytes in the file.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="band" id="states">
+    <div class="rule"></div>
+    <h2>Six states</h2>
+    <p class="intro">Each one maps to something the stick actually sees over USB, so the screen never shows a state the firmware can&rsquo;t know about.</p>
+    <div class="states" id="state-grid"></div>
+  </section>
+
+  <section class="band" id="system">
+    <div class="rule"></div>
+    <h2>The system</h2>
+    <div class="sys">
+      <div>
+        <h3>Palette &middot; 16 colours, 4 bits</h3>
+        <p class="note" style="margin-top:0">The frame is a 4-bit canvas, so every pixel on screen is literally one hex digit. Colours are snapped to RGB565 so this page matches the panel.</p>
+        <div class="palette" id="palette"></div>
+      </div>
+      <div>
+        <h3>Material ramps</h3>
+        <p class="note" style="margin-top:0">All shading is ordered 4&times;4 Bayer dithering along these ramps. Each passes through the cool neutrals before reaching its own hue, so whatever the lamps miss falls back to blue-black. The diamond marks the material&rsquo;s true colour.</p>
+        <div class="ramps" id="ramps"></div>
+        <h3 style="margin-top:28px">Type</h3>
+        <p class="note" style="margin-top:0">A 5&times;7 face on a 6&times;9 cell for everything you read: 0.74&nbsp;mm tall on the real panel. A 3&times;5 face only for units. Both are hand-set bitmaps that port to C as-is.</p>
+        <div class="specimen"><div class="fit" style="justify-content:flex-start"><canvas class="px" id="type5" width="240" height="135"></canvas></div></div>
+      </div>
+    </div>
+
+    <div class="sys">
+      <div>
+        <h3>Motion</h3>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Event</th><th>Time</th><th>Treatment</th></tr></thead>
+            <tbody>
+              <tr><td>Next name locks</td><td class="num">160 ms</td><td>White flash for 100 ms</td></tr>
+              <tr><td>Drop one floor</td><td class="num">460 ms</td><td>Ease-in-out cubic, 7% lens punch at mid-drop</td></tr>
+              <tr><td>Name files into path</td><td class="num">300 ms</td><td>Tab detaches at depth 2.75, arcs 4 px into its slot</td></tr>
+              <tr><td>Back one floor</td><td class="num">440 ms</td><td>Lens pulls back; the name lifts out of the path</td></tr>
+              <tr><td>Rewind to root</td><td class="num">450&ndash;1300 ms</td><td>Scales with depth; path erases right to left</td></tr>
+              <tr><td>Book rises, opens</td><td class="num">500 + 360 ms</td><td>Ease-out, then a hinged cover flip</td></tr>
+              <tr><td>Book closes, sinks</td><td class="num">300 + 420 ms</td><td>Reverse</td></tr>
+              <tr><td>Lamps ignite</td><td class="num">75 ms/floor</td><td>Cascade downward with a slight overshoot</td></tr>
+              <tr><td>Idle freefall</td><td class="num">0.55 floors/s</td><td>A random door every 1.8 s</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h3>Geometry</h3>
+        <ul class="facts">
+          <li><b>Vanishing point at (120, 52),</b> set high so the shaft clears the catalog card that starts at y&nbsp;=&nbsp;111.</li>
+          <li><b>Ring radius = 140 px &divide; depth.</b> A long lens: texels stay near 2 px at the screen edge instead of smearing into blocks.</li>
+          <li><b>The next floor rests at depth 3.3,</b> which puts its name tab at y&nbsp;&asymp;&nbsp;88, one clean step above the path bar.</li>
+          <li><b>Floors are 48 texels tall:</b> railing, slab, then five shelves (&ldquo;five long shelves per side&rdquo;). The top and bottom walls are the story&rsquo;s two free sides, dark hallways that keep text legible.</li>
+          <li><b>The IMU tilts the view:</b> the vanishing point drifts &plusmn;6 px and rolls &plusmn;2&deg;, the HUD stays fixed to the glass.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="firmware">
+    <div class="rule"></div>
+    <h2>Wiring it to babel-usb</h2>
+    <p class="intro">Every state is driven by a handler that already exists in <code>src/monolith/usb_mtp_impl.c.h</code>. The handlers run on the TinyUSB task, so they should only post an event; a display task owns the canvas.</p>
+    <div class="sys" style="margin-top:0">
+      <div>
+<pre><span class="c">// usb_mtp_impl.c.h — one line per hook</span>
+<span class="k">static int32_t</span> <span class="f">fs_open_close_session</span>(...) {
+  ...
+  screen_post(OPEN_SESSION ? EV_CONNECT : EV_DISCONNECT);
+}
+
+<span class="k">static int32_t</span> <span class="f">fs_get_object_handles</span>(...) {
+  <span class="k">if</span> (parent_handle == 0xFFFFFFFF)
+    screen_post(EV_ROOT);
+  <span class="k">else if</span> (prev_parent_handle != parent_handle)
+    screen_post(EV_ENTER, (parent_handle - 1) % handle_count + 1);
+  ...
+}
+
+<span class="k">static int32_t</span> <span class="f">fs_get_object</span>(...) {
+  <span class="k">if</span> (cb_data-&gt;phase == MTP_PHASE_COMMAND)
+    screen_post(EV_OPEN, output_file_len);
+  ...
+}</pre>
+      </div>
+      <div>
+        <h3>Budget on the ESP32-S3</h3>
+        <ul class="facts">
+          <li><b>Frame:</b> 4-bit M5Canvas, 240&times;135 = 16,200 bytes, pushed through a 16-entry RGB565 palette.</li>
+          <li><b>Shaft:</b> one pass over 32,400 pixels: three dot products, one divide and two table reads each. No per-pixel trig, no lookup table for the projection.</li>
+          <li><b>Tables:</b> 20 wall textures with 5 mip levels and three light maps, generated from this file as const arrays in flash.</li>
+          <li><b>Panel:</b> a full 16-bit frame over SPI at 40 MHz takes about 13 ms, so 30 fps leaves room for rendering.</li>
+          <li><b>Encoding:</b> Babel-70 contents come from <code>output_file</code>, which the repo already maintains in <code>fs_append_output()</code>; Hex mode is the path itself.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Built on <a href="https://github.com/p2r3/babel-usb">p2r3/babel-usb</a>, from PortalRunner&rsquo;s <a href="https://www.youtube.com/watch?v=w6rkhvdAqHU">This Flash Drive has Literally Every File</a>.</span>
+    <span>Renderer: <code>design/babel-screen.js</code> &middot; GIF: <code>design/babel-screen-*.gif</code></span>
+  </footer>
+</div>
+
+<script src="babel-screen.js"></script>
+<script>
+(() => {
+  const B = window.BabelScreen;
+  const { SW, SH, LAYOUT } = B;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- pixels to canvas, at integer scale */
+  const LUT = new Uint32Array(16);
+  B.PALETTE.forEach((p, i) => { const [r, g, b] = p.rgb; LUT[i] = (0xff << 24) | (b << 16) | (g << 8) | r; });
+  function blit(canvas, fb, rows) {
+    const ctx = canvas.getContext('2d');
+    const h = rows || SH;
+    if (!canvas._img || canvas._img.height !== h) canvas._img = ctx.createImageData(SW, h);
+    const u32 = new Uint32Array(canvas._img.data.buffer);
+    for (let i = 0; i < SW * h; i++) u32[i] = LUT[fb[i]];
+    ctx.putImageData(canvas._img, 0, 0);
+  }
+  function fitPixels() {
+    const dpr = window.devicePixelRatio || 1;
+    document.querySelectorAll('canvas.px').forEach(c => {
+      const box = c.parentElement.clientWidth;
+      if (!box) return;
+      const s = Math.max(1, Math.floor((box * dpr) / c.width));
+      c.style.width = (s * c.width) / dpr + 'px';
+      c.style.height = (s * c.height) / dpr + 'px';
+    });
+  }
+
+  /* ---------- the live scene */
+  const scene = new B.Scene({ mode: 'hex', seed: 3 });
+  let auto = !reduce;
+  if (auto) scene.director = B.demoDirector(B.DEMO_SCRIPT);
+  else { scene.connect(); scene.goto('Hello', 0); for (let i = 0; i < 600; i++) scene.update(1 / 60); }
+
+  const screen = document.getElementById('screen');
+  const actual = document.getElementById('actual');
+  const fb = B.createFrame();
+  let guides = false, last = performance.now(), acc = 0;
+
+  function frame(now) {
+    acc += Math.min(0.25, (now - last) / 1000);
+    last = now;
+    while (acc >= 1 / 60) { scene.update(1 / 60); acc -= 1 / 60; }
+    scene.render(fb);
+    if (guides) B.drawGuides(fb, scene);
+    blit(screen, fb);
+    const actx = actual.getContext('2d');
+    actx.imageSmoothingEnabled = true;
+    actx.drawImage(screen, 0, 0);
+    syncUI();
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- tilt from the pointer, standing in for the BMI270 */
+  const bezel = document.getElementById('bezel');
+  bezel.addEventListener('pointermove', e => {
+    const r = screen.getBoundingClientRect();
+    const nx = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1));
+    const ny = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height) * 2 - 1));
+    scene.autoTilt = false;
+    scene.tilt.x = nx * 9; scene.tilt.y = ny * 5; scene.tilt.roll = nx * 0.045;
+  });
+  bezel.addEventListener('pointerleave', () => { scene.autoTilt = !reduce; scene.tilt.x = scene.tilt.y = scene.tilt.roll = 0; });
+
+  /* ---------- controls */
+  const $ = id => document.getElementById(id);
+  const modeNote = $('mode-note'), find = $('find'), pathout = $('pathout'), logEl = $('log');
+  const NOTES = {
+    hex: 'Each level holds 256 folders named <code>00</code>&ndash;<code>FF</code>. One folder is one byte, so the path is the file: <code>/48/65/6C/6C/6F</code> is &ldquo;Hello&rdquo;.',
+    b70: 'How the repo ships: each level holds 4,900 folders named with two of 70 symbols, plus one <code>file</code>. The path is read as one huge base-4900 number and written out as bytes, so the file is noise until the last folder: &ldquo;Hello&rdquo; lives at <code>/AD/HU/Uy/ws</code>.',
+  };
+  function setMode(mode) {
+    scene.setMode(mode);
+    $('mode-hex').setAttribute('aria-checked', String(mode === 'hex'));
+    $('mode-b70').setAttribute('aria-checked', String(mode === 'b70'));
+    modeNote.innerHTML = NOTES[mode];
+    if (!auto && find.value) lookup(find.value); else renderPath();
+  }
+  $('mode-hex').addEventListener('click', () => setMode('hex'));
+  $('mode-b70').addEventListener('click', () => setMode('b70'));
+
+  function stopAuto() {
+    if (!auto) return;
+    auto = false; scene.director = null; scene.queue = [];
+    $('b-auto').setAttribute('aria-pressed', 'false');
+  }
+  function startAuto() {
+    auto = true; find.value = '';
+    scene.queue = [];
+    scene.director = B.demoDirector(B.DEMO_SCRIPT);
+    $('b-auto').setAttribute('aria-pressed', 'true');
+  }
+  $('b-auto').addEventListener('click', () => (auto ? stopAuto() : startAuto()));
+  $('b-plug').addEventListener('click', () => { stopAuto(); find.value = ''; scene.host ? scene.disconnect() : scene.connect(); });
+  $('b-read').addEventListener('click', () => { stopAuto(); scene.toggleBook(); });
+  $('b-back').addEventListener('click', () => back());
+  $('b-root').addEventListener('click', () => toRoot());
+  $('guides').addEventListener('change', e => { guides = e.target.checked; });
+
+  function lookup(text) {
+    stopAuto();
+    if (!scene.host) scene.connect();
+    scene.navigateTo(scene.enc.pathFor(B.textBytes(text)), 0, true);
+    renderPath();
+  }
+  function back() {
+    stopAuto();
+    if (find.value) { find.value = [...find.value].slice(0, -1).join(''); lookup(find.value); return; }
+    scene.up();
+  }
+  function toRoot() { stopAuto(); find.value = ''; if (!scene.host) scene.connect(); scene.root(); renderPath(); }
+  function typeChar(ch) { find.value += ch; lookup(find.value); }
+  find.addEventListener('input', () => lookup(find.value));
+  find.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); stopAuto(); scene.toggleBook(); }
+    else if (e.key === 'Escape') { e.preventDefault(); toRoot(); }
+  });
+  bezel.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key.length === 1) { e.preventDefault(); typeChar(e.key); }
+    else if (e.key === 'Backspace') { e.preventDefault(); back(); }
+    else if (e.key === 'Enter') { e.preventDefault(); stopAuto(); scene.toggleBook(); }
+    else if (e.key === 'Escape') { e.preventDefault(); toRoot(); }
+  });
+
+  function currentPathNames() {
+    if (find.value) return scene.enc.pathFor(B.textBytes(find.value)).map(scene.enc.name);
+    return scene.path.slice(0, scene.reveal).map(scene.enc.name);
+  }
+  let lastPathKey = '';
+  function renderPath() {
+    const names = currentPathNames();
+    const key = scene.enc.id + '|' + names.join('/');
+    if (key === lastPathKey) return;
+    lastPathKey = key;
+    pathout.innerHTML = '/' + names.map(n => n.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/ /g, '<span class="sp">␣</span>')).join('/');
+  }
+  $('copy').addEventListener('click', () => {
+    const text = '/' + currentPathNames().join('/');
+    const done = () => { $('copy').textContent = 'Copied'; setTimeout(() => ($('copy').textContent = 'Copy'), 1400); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, () => selectPath());
+    } else selectPath();
+  });
+  function selectPath() { const r = document.createRange(); r.selectNodeContents(pathout); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+
+  /* ---------- keyboard: the Cardputer's 4 x 14 */
+  const ROWS = [
+    ['`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 'del'],
+    ['tab', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\\'],
+    ['fn', 'shift', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', "'", 'enter'],
+    ['ctrl', 'opt', 'alt', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 'space'],
+  ];
+  const SHIFTED = { '`': '~', '1': '!', '2': '@', '3': '#', '4': '$', '5': '%', '6': '^', '7': '&', '8': '*', '9': '(', '0': ')', '-': '_', '=': '+', '[': '{', ']': '}', '\\': '|', ';': ':', "'": '"', ',': '<', '.': '>', '/': '?' };
+  const kb = $('keyboard');
+  let shift = false;
+  const shiftKeys = [];
+  ROWS.forEach(row => row.forEach(k => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'key'; b.textContent = k;
+    if (['tab', 'fn', 'shift', 'ctrl', 'opt', 'alt'].includes(k)) b.classList.add('mod');
+    if (['del', 'enter', 'space', 'tab'].includes(k)) b.classList.add('act');
+    if (k === 'shift') shiftKeys.push(b);
+    b.setAttribute('aria-label', { del: 'Back a folder', enter: 'Read the file', tab: 'Root', space: 'Space' }[k] || k);
+    b.addEventListener('click', () => {
+      if (k === 'del') return back();
+      if (k === 'enter') { stopAuto(); scene.toggleBook(); return; }
+      if (k === 'tab') return toRoot();
+      if (k === 'shift') { shift = !shift; shiftKeys.forEach(s => s.classList.toggle('on', shift)); return; }
+      if (k === 'space') return typeChar(' ');
+      if (['fn', 'ctrl', 'opt', 'alt'].includes(k)) return;
+      const ch = shift ? (SHIFTED[k] || k.toUpperCase()) : k;
+      if (shift) { shift = false; shiftKeys.forEach(s => s.classList.remove('on')); }
+      typeChar(ch);
+    });
+    kb.appendChild(b);
+  }));
+
+  /* ---------- UI that follows the scene */
+  let lastEv = null, lastHost = null, lastAuto = null;
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function syncUI() {
+    const ev = scene.events[scene.events.length - 1];
+    if (ev !== lastEv) {
+      lastEv = ev;
+      const rows = scene.events.slice(-9).reverse();
+      logEl.innerHTML = rows.length
+        ? rows.map(e => `<li><span>${e.t.toFixed(1)}s</span><span class="op">${esc(e.op)}</span><span class="det" title="${esc(e.detail)}">${esc(e.detail)}</span></li>`).join('')
+        : '<li class="empty">Waiting for a host. Plug in, or type to look something up.</li>';
+    }
+    if (scene.host !== lastHost) { lastHost = scene.host; $('b-plug').textContent = scene.host ? 'Unplug' : 'Plug in'; }
+    if (auto !== lastAuto) {
+      lastAuto = auto;
+      $('b-auto').textContent = auto ? 'Pause demo' : 'Play demo';
+      $('auto-state').textContent = auto ? 'The demo is driving the screen' : 'You are driving the screen';
+      $('live').classList.toggle('paused', !auto);
+    }
+    renderPath();
+  }
+
+  /* ---------- stills: anatomy and the six states */
+  function after(op, n, dt) {
+    return sc => { const list = sc.events.filter(e => e.op === op); return list.length > n && sc.t >= list[n].t + dt; };
+  }
+  function capture(mode, pick, setup) {
+    const sc = new B.Scene({ mode, seed: 3 });
+    sc.autoTilt = false;
+    sc.director = B.demoDirector(B.DEMO_SCRIPT, { loop: false });
+    if (setup) setup(sc);
+    const out = B.createFrame();
+    for (let i = 0; i < 60 * 40; i++) { sc.update(1 / 60); if (pick(sc)) break; }
+    sc.render(out);
+    return out;
+  }
+  blit($('still'), capture('hex', after('GetObjectHandles', 3, 0.95)));
+  const PINS = [[94, 5], [206, 5], [LAYOUT.VP_X - LAYOUT.K / (LAYOUT.Z_NEXT - 1 + LAYOUT.LAMP_FV), 43], [136, 88], [133, 45], [86, 117], [36, 128], [197, 122]];
+  $('pins').innerHTML = PINS.map(([x, y], i) => `<span class="pin" style="left:${(x / SW) * 100}%;top:${(y / SH) * 100}%">${i + 1}</span>`).join('');
+
+  const STATES = [
+    ['Freefall', 'No host. The lamps are out, a lantern lights the near walls, and the screen wanders on its own, picking random doors.', 'hex', sc => sc.t >= 2.2],
+    ['Lamps on', 'An MTP session opens: the fall brakes to the root and the lamps ignite downward, floor by floor.', 'hex', after('OpenSession', 0, 0.55)],
+    ['Descending', '<code>GetObjectHandles</code> on a new folder locks its name, drops one floor, and files the name into the path.', 'hex', after('GetObjectHandles', 2, 0.5)],
+    ['Reading', '<code>GetObject</code> on <code>file</code>: the book rises and opens. Bytes on the verso, text on the recto.', 'hex', after('GetObject', 0, 1.5)],
+    ['Babel-70', 'In the shipped encoding the in-between floors hold noise. &ldquo;Hello&rdquo; only appears at <code>/AD/HU/Uy/ws</code>.', 'b70', after('GetObjectHandles', 2, 1.0)],
+    ['Back up', 'Going back lifts the last name out of the path and unlocks that floor; its tab returns to the railing.', 'hex', after('GetObjectHandles', 5, 0.3)],
+  ];
+  $('state-grid').innerHTML = STATES.map((s, i) => `<figure><div class="fit"><canvas class="px" id="st${i}" width="240" height="135"></canvas></div><figcaption><b>${s[0]}</b>${s[1]}</figcaption></figure>`).join('');
+  STATES.forEach((s, i) => blit($('st' + i), capture(s[2], s[3])));
+
+  /* ---------- palette, ramps, type */
+  const TEXT_ON = i => (B.PALETTE[i].rgb[0] * 0.3 + B.PALETTE[i].rgb[1] * 0.59 + B.PALETTE[i].rgb[2] * 0.11 > 120 ? '#0b0c12' : '#efe3c2');
+  $('palette').innerHTML = B.PALETTE.map(p => `<div class="sw"><div class="chip" style="background:${p.css}"><span style="color:${TEXT_ON(p.index)}">${p.index.toString(16).toUpperCase()}</span></div><div class="lab"><b>${p.name}</b>0x${p.rgb565.toString(16).toUpperCase().padStart(4, '0')}<br>${p.role}</div></div>`).join('');
+  $('ramps').innerHTML = B.RAMPS.map((r, i) => `<div class="ramp"><span>${B.RAMP_NAMES[i]}</span><div class="strip">${r.map((c, j) => `<i class="${j === B.NOM[i] ? 'nom' : ''}" style="background:${B.PALETTE[c].css}" title="${B.PALETTE[c].name}"></i>`).join('')}</div></div>`).join('');
+
+  const t5 = B.createFrame();
+  const I = B._internal;
+  I.fillRect(t5, 0, 0, SW, SH, 1);
+  I.text5(t5, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 4, 4, 10);
+  I.text5(t5, 'abcdefghijklmnopqrstuvwxyz', 4, 14, 10);
+  I.text5(t5, '0123456789 !&()-_+ /48/65', 4, 26, 13);
+  I.text3(t5, 'LV 05  4900 B  MTP  3X5 UNITS', 4, 38, 3);
+  const tc = $('type5'); tc.height = 47;
+  blit(tc, t5, 47);
+
+  /* ---------- go */
+  setMode('hex');
+  fitPixels();
+  window.addEventListener('resize', fitPixels);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitPixels);
+  requestAnimationFrame(t => { last = t; frame(t); });
+})();
+</script>
