@@ -32,6 +32,8 @@
 #include "tusb.h"
 #include "util.h"
 #include "utf8-utf16-converter.h"
+#include "screen.h"
+#include "screen/babel_screen.h"
 
 #define TU_FIELD_SIZE(_type, _field)  (sizeof(((_type *)0)->_field))
 
@@ -176,6 +178,7 @@ fs_op_handler_dict_t fs_op_handler_dict[] = {
 };
 
 static bool is_session_opened = false;
+volatile bool babel_session_open = false;
 // static uint32_t send_obj_handle = 0;
 
 //--------------------------------------------------------------------+
@@ -590,28 +593,30 @@ static int32_t fs_get_device_info(tud_mtp_cb_data_t* cb_data) {
 #define BABEL_MAX_NAME_LENGTH 2
 #define BABEL_ALPHABET_LENGTH 70
 
-const char alphabet[BABEL_ALPHABET_LENGTH] = {
-  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
-  'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
-  'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
-  'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
-  'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
-  'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
-  'w', 'x', 'y', 'z', '0', '1', '2', '3',
-  '4', '5', '6', '7', '8', '9', '!', ' ',
-  '&', '(', ')', '-', '_', '+', '[', ']',
-  '^', '='
-};
+// Folder names come from bs_name() in screen/babel_screen.c: the 70-symbol
+// alphabet for Babel-70, or two hex digits.
 
 uint8_t output_file[4096] = {0};
 size_t output_file_len = 0;
 
 uint32_t handle_count = 0;
 uint32_t path_depth = 0;
-uint32_t prev_parent_handle = 0;
-#define BABEL_PATH_MAX 64
-uint32_t babel_path[BABEL_PATH_MAX];   // folder index (0-based) chosen at each depth, for the screen
-volatile uint32_t babel_activity = 0;  // bumps on every navigation, drives the activity LED
+volatile int babel_mode = BS_MODE_B70;
+volatile uint32_t babel_activity = 0;  // bumps on any MTP traffic, drives the activity LED
+
+// The path the host has walked, one folder index per depth. Handles only carry
+// a depth and an index (handle = index + 1 + depth * handle_count), so when the
+// host lists a folder at depth d we keep the first d entries and replace the
+// rest: browsing back up works, and so does copying `file` from a parent folder
+// whose listing the host cached.
+#define BABEL_STACK_MAX 4096
+uint16_t babel_stack[BABEL_STACK_MAX];
+uint32_t babel_depth = 0;
+
+static void babel_reset_path(void) {
+  babel_depth = 0;
+  output_file_len = 0;
+}
 
 static int32_t fs_open_close_session(tud_mtp_cb_data_t* cb_data) {
   const mtp_container_command_t* command = cb_data->command_container;
@@ -620,20 +625,15 @@ static int32_t fs_open_close_session(tud_mtp_cb_data_t* cb_data) {
       return MTP_RESP_SESSION_ALREADY_OPEN;
     }
     is_session_opened = true;
+    babel_session_open = true;
     babel_activity++;
 
-    if (!handle_count) {
-      // Calculate total amount of objects in each directory
-      handle_count = 1;
-      for (int i = 0; i < BABEL_MAX_NAME_LENGTH; i++) {
-        handle_count *= BABEL_ALPHABET_LENGTH;
-      }
-      // Add one handle for the sole file in the directory
-      handle_count++;
-    }
+    // Total amount of objects in each directory: every folder name, plus the
+    // sole file. The naming mode only changes while no session is open.
+    handle_count = bs_fanout(babel_mode) + 1;
 
-    output_file_len = 0;
-    output_file[0] = 0;
+    babel_reset_path();
+    screen_post(SCREEN_EV_CONNECT, 0, 0);
 
     // Upon session open, we regenerate the handle table
     // fs_handletable_regenerate(&handle_table);
@@ -642,7 +642,8 @@ static int32_t fs_open_close_session(tud_mtp_cb_data_t* cb_data) {
       return MTP_RESP_SESSION_NOT_OPEN;
     }
     is_session_opened = false;
-    // handle_self_inc = 0;
+    babel_session_open = false;
+    screen_post(SCREEN_EV_DISCONNECT, 0, 0);
   }
   return MTP_RESP_OK;
 }
@@ -712,127 +713,16 @@ static int32_t fs_get_device_properties(tud_mtp_cb_data_t* cb_data) {
   return 0;
 }
 
-void fs_output_add (uint32_t value) {
-  uint32_t index = 0;
-  uint32_t carry = 0;
-  while (value || carry) {
-    int digit = (value & 0xFF) + output_file[index] + carry;
-    output_file[index] = digit & 0xFF;
-    carry = digit >> 8;
-    value >>= 8;
-    if (++index > output_file_len) {
-      output_file[index] = 0;
-      output_file_len = index;
-    }
-  }
+// The contents of `file` in the folder at `depth`: the path read as a
+// bijective base-4900 number (Babel-70) and written out as bijective base-256
+// bytes, or the path itself (hex). Port note: upstream's fs_append_output()
+// got the base-256 step wrong for some paths (e.g. /Dt/rn/ni served the file
+// that lives at /vP/ni), so this uses bs_content_of(), which the host tests
+// in firmware/test check against file-to-path.js's maths.
+static void babel_build_output(uint32_t depth) {
+  if (depth > babel_depth) depth = babel_depth;
+  output_file_len = bs_content_of(babel_mode, babel_stack, depth, output_file, sizeof(output_file));
 }
-
-void fs_output_multiply (uint32_t value) {
-  uint32_t index = 0;
-  uint32_t carry = 0;
-  while (index < output_file_len || carry) {
-    uint32_t digit = output_file[index] * value + carry;
-    output_file[index] = digit & 0xFF;
-    carry = digit >> 8;
-    if (++index > output_file_len) {
-      output_file[index] = 0;
-      output_file_len = index;
-    }
-  }
-}
-
-void fs_output_bytes_dec () {
-  for (int i = 0; i < output_file_len - 1; i ++) {
-    int j = i;
-    while (1) {
-      if (output_file[j] == 0) {
-        output_file[j] = 255;
-      } else {
-        output_file[j] --;
-        break;
-      }
-      j ++;
-    }
-  }
-  if (output_file[output_file_len - 1] == 0) {
-    output_file_len --;
-  } else {
-    output_file[output_file_len - 1] --;
-  }
-}
-
-void fs_output_bytes_inc () {
-  for (int i = 0; i < output_file_len; i ++) {
-    int j = i;
-    while (1) {
-      if (output_file[j] == 255) {
-        output_file[j] = 0;
-      } else {
-        output_file[j] ++;
-        break;
-      }
-      if (++j > output_file_len) {
-        output_file[j] = 0;
-        output_file_len = j;
-      }
-    }
-  }
-}
-
-void fs_append_output (uint32_t handle) {
-
-  // Increment every byte of the output file buffer
-  /**
-   * This converts the arbitrary byte buffer to a valid base-256 number
-   * without any leading zeroes, so that it can be operated on with basic
-   * arithmetic. Then, once we're done, we decrement every byte to convert
-   * it back to a byte buffer that supports leading null bytes.
-   */
-  fs_output_bytes_inc();
-
-  // Shift buffer up by amount of possible combinations (base)
-  fs_output_multiply(handle_count - 1);
-
-  // Add current handle to least significant end of buffer
-  fs_output_add(handle);
-
-  // Decrement every byte of the output file buffer, undoing the first operation
-  fs_output_bytes_dec();
-
-}
-
-// void fs_reverse_output (uint32_t handle) {
-
-//   // Subtract handle from buffer
-//   uint32_t index = 0;
-//   uint32_t carry = 0;
-//   while (handle || carry) {
-//     int value = output_file[index] - (handle & 0xFF) - carry;
-//     output_file[index] = value < 0 ? 256 + value : value;
-//     carry = value < 0;
-//     handle >>= 8;
-//     if (++index > output_file_len) {
-//       output_file[index] = 0;
-//       output_file_len = index;
-//     }
-//   }
-
-//   // Divide buffer by alphabet length
-//   // This should be a clean division with no remainder
-//   index = output_file_len;
-//   carry = 0;
-//   while (index-- > 0) {
-//     uint32_t value = output_file[index] + carry * 256;
-//     output_file[index] = value / BABEL_ALPHABET_LENGTH;
-//     carry = value % BABEL_ALPHABET_LENGTH;
-//   }
-
-//   // Trim leading zero bytes
-//   while (output_file_len > 0 && output_file[output_file_len - 1] == 0) {
-//     output_file_len--;
-//   }
-
-// }
 
 static int32_t fs_get_object_handles(tud_mtp_cb_data_t* cb_data) {
   // `ls /<folder_in_question>`
@@ -851,19 +741,22 @@ static int32_t fs_get_object_handles(tud_mtp_cb_data_t* cb_data) {
   if (cb_data->phase == MTP_PHASE_COMMAND) {
 
     if (parent_handle != 0xFFFFFFFF) {
-      if (prev_parent_handle != parent_handle) {
-        fs_append_output((parent_handle - 1) % handle_count + 1);
-        prev_parent_handle = parent_handle;
-        if (path_depth < BABEL_PATH_MAX) babel_path[path_depth] = (parent_handle - 1) % handle_count;
-        path_depth++;
-        babel_activity++;
+      // The listed folder sits at depth d (d folders above it)
+      const uint32_t d = (parent_handle - 1) / handle_count;
+      const uint32_t index = (parent_handle - 1) % handle_count;
+      const uint32_t known = d < babel_depth ? d : babel_depth;
+      if (known < BABEL_STACK_MAX && index < handle_count - 1) {
+        if (babel_depth != known + 1 || babel_stack[known] != index) {
+          babel_stack[known] = (uint16_t)index;
+          babel_depth = known + 1;
+          screen_post(SCREEN_EV_ENTER, known, index);
+        }
       }
-      // snprintf(babel_log + strlen(babel_log), sizeof(babel_log), "get_obj_handles %lu\n", parent_handle);
+      path_depth = d + 1;   // children are numbered from the host's view of the depth
+      babel_activity++;
     } else {
-      // snprintf(babel_log + strlen(babel_log), sizeof(babel_log), "get_obj_handles 0\n");
-      output_file_len = 0;
-      output_file[0] = 0;
-      prev_parent_handle = 0;
+      if (babel_depth) screen_post(SCREEN_EV_ROOT, 0, 0);
+      babel_reset_path();
       path_depth = 0;
       babel_activity++;
     }
@@ -927,13 +820,13 @@ static int32_t fs_get_object_info(tud_mtp_cb_data_t* cb_data) {
   bool entry_is_dir = obj_handle != handle_count;
 
   if (entry_is_dir) {
-    uint32_t index = obj_handle - 1;
-    for (int i = BABEL_MAX_NAME_LENGTH - 1; i >= 0; i --) {
-      babel_dir_name[i] = alphabet[index % BABEL_ALPHABET_LENGTH];
-      index /= BABEL_ALPHABET_LENGTH;
-    }
+    char name[3];
+    bs_name(babel_mode, (uint16_t)(obj_handle - 1), name);
+    babel_dir_name[0] = name[0];
+    babel_dir_name[1] = name[1];
     entry_name_ptr = babel_dir_name;
   }
+  babel_activity++;
 
   // uint16_t utf16_filename[MTP_FILENAME_LENGTH];
   // size_t write_count = utf8_to_utf16((uint8_t *)entry_name_ptr, strlen(entry_name_ptr), utf16_filename, MTP_FILENAME_LENGTH);
@@ -985,7 +878,10 @@ static int32_t fs_get_object(tud_mtp_cb_data_t* cb_data) {
     // something back, we need to send metadata back, so if we read a whole packet it's definitely
     // not gonna fit in the MTP packet's remaining space if our file is larger than the free space,
     // and when the file's smaller than that we're totally fine then.
-    // fs_append_output(obj_handle - 1);
+    // `file` in a folder at depth k has handle (k + 1) * handle_count
+    babel_build_output((obj_handle - 1) / handle_count);
+    babel_activity++;
+    screen_post(SCREEN_EV_OPEN, (obj_handle - 1) / handle_count, output_file_len);
     size_t file_size = output_file_len;
     // Pass file_size (not first_chunk) so add_raw records the full transfer length in header->len,
     // even though it only copies min(file_size, remaining_buf) bytes into the packet buffer.
@@ -1193,4 +1089,29 @@ int32_t fs_format_store(tud_mtp_cb_data_t* cb_data) {
 
   //   return MTP_RESP_OPERATION_NOT_SUPPORTED;
   // }
+}
+
+//--------------------------------------------------------------------+
+// Bus state: a battery-powered device sees an unplug as a suspend
+//--------------------------------------------------------------------+
+// A fresh enumeration (re-plugged, host rebooted) starts without a session,
+// so the host's OpenSession isn't refused as "already open".
+void tud_mount_cb(void) {
+  is_session_opened = false;
+  babel_session_open = false;
+}
+
+void tud_umount_cb(void) {
+  is_session_opened = false;
+  babel_session_open = false;
+  screen_post(SCREEN_EV_DISCONNECT, 0, 0);
+}
+
+void tud_suspend_cb(bool remote_wakeup_en) {
+  (void) remote_wakeup_en;
+  screen_post(SCREEN_EV_DISCONNECT, 0, 0);
+}
+
+void tud_resume_cb(void) {
+  if (is_session_opened) screen_post(SCREEN_EV_CONNECT, 0, 0);
 }
