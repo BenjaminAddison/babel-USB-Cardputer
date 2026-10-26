@@ -21,5 +21,5 @@ extern volatile uint32_t babel_activity;   // bumps on any MTP traffic: the acti
 extern volatile int babel_mode;            // BS_MODE_HEX or BS_MODE_B70; read at OpenSession
 extern volatile bool babel_session_open;
 
-// Settings (naming mode, brightness, sound) from NVS. Call before USB starts.
+// Settings (naming mode, brightness) from NVS. Call before USB starts.
 void app_load_settings(void);

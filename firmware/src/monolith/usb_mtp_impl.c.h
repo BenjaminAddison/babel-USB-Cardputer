@@ -31,7 +31,6 @@
 #include "esp_log.h"
 #include "tusb.h"
 #include "util.h"
-#include "utf8-utf16-converter.h"
 #include "screen.h"
 #include "screen/babel_screen.h"
 

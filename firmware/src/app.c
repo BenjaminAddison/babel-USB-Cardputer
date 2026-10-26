@@ -40,7 +40,7 @@ static QueueHandle_t evq;
 static bs_scene_t scene;
 static uint8_t fb[BS_W * BS_H];
 
-static struct { int mode; int brightness; bool sound; } cfg = { BS_MODE_B70, 160, true };
+static struct { int mode; int brightness; } cfg = { BS_MODE_B70, 160 };
 
 static uint16_t host_path[BS_PATH_MAX];
 static int host_len;
@@ -50,7 +50,7 @@ static uint8_t lookup[LOOKUP_MAX];
 static int lookup_len;
 static int64_t last_key_us;
 
-static bool imu_ok, sound_ok;
+static bool imu_ok;
 static SemaphoreHandle_t helper_go, helper_done;
 static bs_params_t frame_params;
 
@@ -64,15 +64,13 @@ void app_load_settings(void)
     }
     nvs_handle_t h;
     if (err == ESP_OK && nvs_open("babel", NVS_READONLY, &h) == ESP_OK) {
-        int8_t mode = cfg.mode, sound = cfg.sound;
+        int8_t mode = cfg.mode;
         uint8_t bri = (uint8_t)cfg.brightness;
         nvs_get_i8(h, "mode", &mode);
         nvs_get_u8(h, "bright", &bri);
-        nvs_get_i8(h, "sound", &sound);
         nvs_close(h);
         cfg.mode = mode == BS_MODE_HEX ? BS_MODE_HEX : BS_MODE_B70;
         cfg.brightness = bri < 16 ? 16 : bri;
-        cfg.sound = sound != 0;
     }
     babel_mode = cfg.mode;
 }
@@ -83,7 +81,6 @@ static void save_settings(void)
     if (nvs_open("babel", NVS_READWRITE, &h) != ESP_OK) return;
     nvs_set_i8(h, "mode", (int8_t)cfg.mode);
     nvs_set_u8(h, "bright", (uint8_t)cfg.brightness);
-    nvs_set_i8(h, "sound", cfg.sound);
     nvs_commit(h);
     nvs_close(h);
 }
@@ -114,10 +111,7 @@ static void handle_event(const screen_ev_t *ev)
         case SCREEN_EV_CONNECT:
             lookup_len = 0;
             host_len = 0;
-            if (scene.host != BS_HOST_MTP) {
-                bs_connect(&scene, BS_HOST_MTP);
-                sound_chime();
-            }
+            if (scene.host != BS_HOST_MTP) bs_connect(&scene, BS_HOST_MTP);
             break;
         case SCREEN_EV_DISCONNECT:
             host_len = 0;
@@ -145,10 +139,7 @@ static void handle_event(const screen_ev_t *ev)
             int k = (int)ev->a < host_len ? (int)ev->a : host_len;
             ensure_mtp_host();
             follow_host(k);
-            if (!scene.book.is_open) {
-                bs_open(&scene);
-                sound_page();
-            }
+            if (!scene.book.is_open) bs_open(&scene);
             host_book_until = esp_timer_get_time() + HOST_BOOK_US;
             break;
         }
@@ -174,7 +165,6 @@ static void handle_key(const key_event_t *k)
     switch (k->code) {
         case KEY_ENTER:
         case KEY_BTN_A:
-            if (!scene.book.is_open) sound_page();
             host_book_until = 0;
             bs_toggle_book(&scene);
             break;
@@ -207,12 +197,6 @@ static void handle_key(const key_event_t *k)
             break;
         case KEY_ALT:
             scene.show_fps = !scene.show_fps;
-            break;
-        case KEY_CTRL:
-            cfg.sound = !cfg.sound;
-            sound_set_enabled(cfg.sound);
-            toast_setting(!sound_ok ? "NO SPEAKER FOUND" : cfg.sound ? "SOUND ON" : "SOUND OFF");
-            save_settings();
             break;
         default:
             if (k->code >= 32 && k->code < 127 && lookup_len < LOOKUP_MAX) {
@@ -285,8 +269,6 @@ static void display_task(void *arg)
     keyboard_init();
     imu_ok = imu_init();
     battery_init();
-    sound_ok = sound_init();
-    sound_set_enabled(cfg.sound);
 
     helper_go = xSemaphoreCreateBinary();
     helper_done = xSemaphoreCreateBinary();
@@ -295,12 +277,11 @@ static void display_task(void *arg)
     render_frame();
     display_push(fb);
     display_set_brightness((uint8_t)cfg.brightness);
-    ESP_LOGI(TAG, "running: imu %d, sound %d, free heap %u", imu_ok, sound_ok, (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+    ESP_LOGI(TAG, "running: imu %d, free heap %u", imu_ok, (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
 
     int64_t prev = esp_timer_get_time();
     TickType_t wake = xTaskGetTickCount();
     uint32_t seen_activity = babel_activity;
-    float last_lock = -1;
     for (;;) {
         int64_t now = esp_timer_get_time();
         float dt = (now - prev) / 1e6f;
@@ -326,7 +307,6 @@ static void display_task(void *arg)
         update_battery(now);
 
         bs_update(&scene, dt);
-        if (scene.host && scene.lock_fx.active && scene.lock_fx.t0 != last_lock) { last_lock = scene.lock_fx.t0; sound_tick(); }
         scene.fps += (1.0f / fmaxf(dt, 0.001f) - scene.fps) * 0.1f;
         if (scene.show_fps) scene.free_kb = (int)(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024);
 

@@ -15,18 +15,12 @@
 #define BOARD_LCD_GAP_X     40
 #define BOARD_LCD_GAP_Y     53
 
-// Internal I2C: TCA8418 keyboard (0x34), BMI270 IMU (0x69 or 0x68), ES8311 codec (0x18)
+// Internal I2C: TCA8418 keyboard (0x34), BMI270 IMU (0x69 or 0x68)
 #define BOARD_I2C_SDA       8
 #define BOARD_I2C_SCL       9
 #define BOARD_I2C_HZ        400000
 #define BOARD_KB_ADDR       0x34
 #define BOARD_KB_INT        11
-#define BOARD_CODEC_ADDR    0x18
-
-// I2S to the ES8311 (speaker)
-#define BOARD_I2S_BCK       41
-#define BOARD_I2S_WS        43
-#define BOARD_I2S_DOUT      42
 
 // Battery: ADC1 on GPIO10 through a 1:2 divider
 #define BOARD_BAT_GPIO      10

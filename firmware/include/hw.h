@@ -5,7 +5,7 @@
 
 #include "driver/i2c_master.h"
 
-// Internal I2C bus, shared by the keyboard, IMU and codec. Only the display
+// Internal I2C bus, shared by the keyboard and IMU. Only the display
 // task talks on it, so there is no locking beyond the driver's own.
 i2c_master_bus_handle_t i2c_bus(void);
 
@@ -48,11 +48,3 @@ void battery_init(void);
 // Battery voltage in mV (0 if unknown) and a rough level in percent.
 int battery_mv(void);
 int battery_percent(int mv);
-
-// ------------------------------------------------------------------- sound
-bool sound_init(void);
-void sound_set_enabled(bool on);
-// Short effects, mixed and played from a background task.
-void sound_tick(void);       // a folder locks
-void sound_page(void);       // the book opens
-void sound_chime(void);      // a host connects

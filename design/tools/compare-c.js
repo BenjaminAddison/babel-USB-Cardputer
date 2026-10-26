@@ -1,8 +1,10 @@
 // Side-by-side check of the firmware's C port against this renderer.
 // Builds firmware/test/host_render, plays the same demo in both, and writes
 // out/compare-<mode>.png: JS frames on the left, C frames on the right.
+// `states` instead renders the screens only the firmware has (splash,
+// keyboard lookup, overlays) to out/firmware-states.png.
 //
-//   node tools/compare-c.js [hex|b70] [t1,t2,...] [scale]
+//   node tools/compare-c.js [hex|b70|states] [t1,t2,...] [scale]
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
@@ -22,11 +24,28 @@ const raw = path.join(outDir, `.c-frames-${mode}.raw`);
 execFileSync(path.join(testDir, 'host_render'), [mode, times.join(','), raw], { stdio: 'inherit' });
 const cbuf = fs.readFileSync(raw);
 fs.unlinkSync(raw);
+const N = B.SW * B.SH;
+const pal = B.PALETTE.map(p => p.rgb);
+
+if (mode === 'states') {
+  const n = cbuf.length / N, cols = 2, W = B.SW * S, H = B.SH * S, G = 4, rows = Math.ceil(n / cols);
+  const SWt = cols * W + (cols + 1) * G, SHt = rows * H + (rows + 1) * G;
+  const sheet = new Uint8Array(SWt * SHt).fill(1);
+  for (let i = 0; i < n; i++) {
+    const big = scale(cbuf.subarray(i * N, (i + 1) * N), B.SW, B.SH, S);
+    const ox = G + (i % cols) * (W + G), oy = G + ((i / cols) | 0) * (H + G);
+    for (let y = 0; y < H; y++) sheet.set(big.subarray(y * W, y * W + W), (oy + y) * SWt + ox);
+  }
+  const name = path.join(outDir, 'firmware-states.png');
+  fs.writeFileSync(name, encodeIndexed(SWt, SHt, sheet, pal));
+  console.log('wrote', path.relative(process.cwd(), name));
+  process.exit(0);
+}
 
 const sc = new B.Scene({ mode, seed: 3 });
 sc.director = B.demoDirector(B.DEMO_SCRIPT);
 const fb = B.createFrame();
-const N = B.SW * B.SH, dt = 1 / 60;
+const dt = 1 / 60;
 const pairs = [];
 let t = 0;
 times.forEach((target, i) => {
@@ -49,5 +68,5 @@ pairs.forEach(([js, c], i) => {
   });
 });
 const name = path.join(outDir, `compare-${mode}.png`);
-fs.writeFileSync(name, encodeIndexed(SWt, SHt, sheet, B.PALETTE.map(p => p.rgb)));
+fs.writeFileSync(name, encodeIndexed(SWt, SHt, sheet, pal));
 console.log('wrote', path.relative(process.cwd(), name));

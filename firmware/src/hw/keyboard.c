@@ -1,5 +1,6 @@
 // Cardputer ADV keyboard: a TCA8418 scanning a 7 x 8 matrix, remapped to the
-// original Cardputer's 4 x 14 layout (after M5Cardputer's TCA8418KeyboardReader).
+// original Cardputer's 4 x 14 layout. Key map and remap follow M5Stack's
+// M5Cardputer library (MIT, Copyright (c) 2025 M5Stack Technology Co., Ltd.).
 #include <string.h>
 
 #include "board.h"

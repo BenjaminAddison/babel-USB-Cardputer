@@ -1,6 +1,6 @@
 // BMI270 accelerometer, enough of it to tilt the shaft. The init sequence
-// follows M5Unified's BMI270_Class: soft reset, upload the config blob, wait
-// for the sensor to report ready, then switch the accelerometer on.
+// follows M5Stack's M5Unified BMI270_Class (MIT): soft reset, upload the config
+// blob, wait for the sensor to report ready, then switch the accelerometer on.
 #include "bmi270_config.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"

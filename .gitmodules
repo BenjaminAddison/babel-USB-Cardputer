@@ -1,3 +1,4 @@
-[submodule "babel-usb"]
-	path = babel-usb
-	url = https://github.com/p2r3/babel-usb
+[submodule "espressif-tinyusb-component"]
+	path = firmware/components/espressif-tinyusb-component
+	url = https://github.com/RigoLigoRLC/espressif-tinyusb-component
+	branch = release/v0.18-with-mtp

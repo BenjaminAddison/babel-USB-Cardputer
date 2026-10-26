@@ -3,6 +3,7 @@
 //
 //   make -C firmware/test && ./firmware/test/host_render hex 1.5,4.6,9 out.raw
 //   node design/tools/compare-c.js hex 1.5,4.6,9    (builds and diffs against the JS)
+//   node design/tools/compare-c.js states           (the firmware-only screens)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -63,9 +64,9 @@ static void states(const char *out) {
     bs_goto_bytes(&sc, (const uint8_t *)text, i, 0, true);
     RUN(0.25);
   }
-  RUN(1.2); SHOT();                    // lookup landed: the path to type into a file browser
-  bs_toggle_book(&sc); RUN(1.4); SHOT();
-  bs_toggle_book(&sc); RUN(1.0);
+  RUN(3.6); SHOT();                    // lookup landed: the path to type into a file browser
+  bs_toggle_book(&sc); RUN(1.6); SHOT();
+  bs_toggle_book(&sc); RUN(1.6);
   sc.battery_pct = 6; sc.show_fps = true; sc.fps = 31; sc.free_kb = 41;
   bs_toast(&sc, "NAMES: HEX 00-FF", BS_LAMP, 1.4f);
   RUN(0.6); SHOT();                    // overlays + toast
