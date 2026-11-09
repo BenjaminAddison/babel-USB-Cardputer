@@ -3,6 +3,7 @@
 #include "tusb.h"
 #include "esp_log.h"
 #include "esp_private/usb_phy.h"
+#include "screen.h"
 
 #define TAG "init"
 
@@ -20,6 +21,7 @@ int init_hardware_usb_phy(void)
 
 int init_hardware(void)
 {
+    app_load_settings();   // the naming mode must be known before a host opens a session
     ESP_ERROR_CHECK(init_hardware_usb_phy());
 
     return ESP_OK;
@@ -88,5 +90,6 @@ int init_tasks(void)
         &hTaskTinyusb);
     if (ret != pdPASS) return ESP_FAIL;
 
+    screen_start();
     return ESP_OK;
 }

@@ -34,4 +34,28 @@ for (const text of ['Hello', 'Help', 'BABEL', 'every file', 'A', '\u0000', 'The 
 }
 // HEX mode is the identity
 console.log('hex Hello ->', B.ENCODINGS.hex.pathFor(B.textBytes('Hello')).map(B.ENCODINGS.hex.name).join('/'));
+
+// 3) The firmware: what the MTP side serves as `file` for random walks
+//    (firmware/test/mtp_output_test, built with `make -C firmware/test`).
+//    Note: upstream fs_append_output() fails this for some paths, e.g. /Dt/rn/ni,
+//    which is why the firmware no longer uses it.
+const path = require('path');
+const { execFileSync } = require('child_process');
+const bin = path.join(__dirname, '..', '..', 'firmware', 'test', 'mtp_output_test');
+let fw = null;
+try { fw = execFileSync(bin, ['--vectors'], { encoding: 'utf8' }); } catch (e) { console.log('skip firmware vectors (build firmware/test first)'); }
+if (fw) {
+  let n = 0, bad = 0;
+  for (const line of fw.trim().split('\n')) {
+    const [lhs, rhs] = line.split(':');
+    const [mode, ...comps] = lhs.trim().split(/\s+/).map(Number);
+    const got = rhs.trim() ? rhs.trim().split(/\s+/).map(Number) : [];
+    const want = mode === 1 ? enc.content(comps.map(c => c + 1)) : comps;
+    const pathOk = mode !== 1 || fileToPath(got) === (comps.length ? '/' + comps.map(c => enc.name(c + 1)).join('/') : '');
+    n++;
+    if (JSON.stringify(got) !== JSON.stringify(want) || !pathOk) { bad++; if (bad < 4) console.log('BAD firmware', line); }
+  }
+  console.log(bad ? `BAD firmware contents: ${bad} of ${n}` : `OK  firmware contents match for ${n} random walks`);
+  ok = ok && !bad;
+}
 process.exit(ok ? 0 : 1);
