@@ -8,16 +8,15 @@
 - The Air Shaft screen, ported from `design/babel-screen.js` to C. Rows render on both cores. The port is checked frame by frame against the JS (`node design/tools/compare-c.js`).
 - Look up a file from the keyboard, with the path shown on screen.
 - Tilt from the BMI270, battery warning, boot splash, settings saved in NVS.
+- Runs on a real Cardputer ADV: the display, keyboard, motion sensor and MTP drive all work.
 
-## To check on hardware
+## Worth a closer look
 
-These parts are written from datasheets and M5Stack's libraries but need confirming on a real Cardputer ADV:
+The firmware works on hardware. These are tuning points, not blockers:
 
-- **Panel orientation and offset.** The settings are `swap_xy`, `mirror(true, false)` and gap `(40, 53)` in `firmware/src/hw/display.c`.
-- **Tilt direction.** `IMU_AXIS_*` and `IMU_SIGN_*` in `firmware/src/app.c` map the accelerometer's axes to the view, and the mapping is a guess.
+- **Tilt direction.** `IMU_AXIS_*` and `IMU_SIGN_*` in `firmware/src/app.c` map the accelerometer's axes to the view. Flip a sign there if the view tilts the wrong way.
 - **Battery percentage.** It assumes 3.30 V is empty and 4.15 V is full (`firmware/src/hw/battery.c`).
-- **Frame rate and free memory.** Press `alt` to see both. If the frame rate is low, move the shaft renderer to fixed-point maths.
-- **USB after Launcher.** Check the drive still enumerates when Launcher boots the app.
+- **Frame rate.** Press `alt` to see the frame rate and free memory. If it drops, move the shaft renderer to fixed-point maths.
 - **Folder depth on each host.** Find how deep Windows Explorer, macOS (OpenMTP) and Linux (gvfs) will browse before path-length limits stop you. That decides how large a file each host can reach, and whether hex or Babel-70 is the better default.
 
 ## Known limitations

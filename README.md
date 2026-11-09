@@ -8,6 +8,10 @@ Based on [p2r3/babel-usb](https://github.com/p2r3/babel-usb), from PortalRunner'
 
 ![The Air Shaft: a host browses to "Hello" and opens the file](design/out/babel-screen-hex@2x.gif)
 
+## Status
+
+**The firmware is finished and runs on the Cardputer ADV.** The drive enumerates over USB-C, every folder lists its 4,900 folders and `file`, and the Air Shaft screen, keyboard lookup and tilt all work. A prebuilt image is in [`firmware/release/`](firmware/release/), ready to install from Launcher or flash directly. Known limitations and ideas for later are in [docs/TODO.md](docs/TODO.md).
+
 ## The screen: The Air Shaft
 
 > "The universe (which others call the Library) is composed of an indefinite, perhaps infinite number of hexagonal galleries, with vast air shafts between, surrounded by very low railings." (Jorge Luis Borges, *The Library of Babel*)
